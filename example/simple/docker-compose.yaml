@@ -1,0 +1,15 @@
+services:
+  whoami:
+    image: "traefik/whoami"
+    container_name: "simple-service"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+    networks:
+      - traefik-servicenet
+
+networks:
+  traefik-servicenet:
+    external: true
+    name: traefik-servicenet

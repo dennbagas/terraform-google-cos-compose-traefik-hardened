@@ -1,0 +1,7 @@
+%{ for file in additional_files ~}
+- path: /home/composer/${file.target_path}
+  permissions: ${file.target_permission}
+  owner: ${file.target_owner}
+  content: |
+    ${indent(4, file(file.file))}
+%{ endfor ~}

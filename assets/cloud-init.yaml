@@ -1,0 +1,103 @@
+#cloud-config
+
+users:
+- name: composer
+  uid: 2000
+  groups: docker
+
+write_files:
+- path: /home/composer/traefik/.env
+  permissions: 644
+  owner: composer
+  content: |
+    ${indent(4, traefik_env)}
+- path: /home/composer/traefik/traefik.yaml
+  permissions: 644
+  owner: composer
+  content: |
+    ${indent(4, traefik_config)}
+- path: /etc/systemd/system/dockerproxy.service
+  permissions: 644
+  owner: root
+  # run dockerproxy as user 65534 (nobody) and group 412 (docker)
+  # container optimized os seems have 412 as docker group 
+  content: |
+    [Unit]
+    Description=Docker Proxy service
+    After=gcr-online.target docker.socket docker-events-collector.service
+    Wants=gcr-online.target docker.socket
+    [Service]
+    ExecStart=/usr/bin/docker run --rm --name dockerproxy \
+      -u 65534:412 --read-only --cap-drop ALL --security-opt no-new-privileges \
+      -v /var/run/docker.sock:/var/run/docker.sock:ro \
+      -m 64M --net docker-proxynet \
+      wollomatic/socket-proxy:1 \
+      -loglevel=info -listenip=0.0.0.0 -allowfrom=traefik -allowGET=/v1\..{1,2}/(version|containers/.*|events.*) -watchdoginterval=3600 -stoponwatchdog -shutdowngracetime=5
+    ExecStop=/usr/bin/docker stop traefik-dockerproxy
+- path: /etc/systemd/system/traefik.service
+  permissions: 644
+  owner: root
+  content: |
+    [Unit]
+    Description=Traefik service
+    After=dockerproxy.service gcr-online.target docker.socket docker-events-collector.service
+    Wants=dockerproxy.service gcr-online.target docker.socket
+    [Service]
+    ExecStart=/usr/bin/docker run --rm --name traefik \
+      --env-file /home/composer/traefik/.env \
+      --security-opt no-new-privileges:true \
+      -p 80:10080 -p 443:10443 \
+      -v /home/composer/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro \
+      -v /home/composer/traefik/acme/:/etc/traefik/acme/:rw \
+      --net docker-proxynet --net traefik-servicenet \
+      traefik:v3.3
+    ExecStop=/usr/bin/docker stop traefik
+- path: /etc/systemd/system/compose.service
+  permissions: 644
+  owner: root
+  # add environment variable DOCKER_CONFIG pointing to where we have
+  # the compose plugin and the other config
+  content: |
+    [Unit]
+    Description=Compose service
+    After=traefik.service gcr-online.target docker.socket docker-events-collector.service
+    Wants=traefik.service gcr-online.target docker.socket
+    [Service]
+    Environment="DOCKER_CONFIG=/home/composer/.docker"
+    ExecStart=/usr/bin/docker compose --ansi=never --project-directory=/home/composer \
+      up --no-color --remove-orphans
+    ExecStop=/usr/bin/docker compose --project-directory=/home/composer down
+- path: /home/composer/.docker/config.json
+  permissions: 644
+  owner: composer
+  content: |
+    ${indent(4, docker_config)}
+- path: /home/composer/docker-compose.yml
+  permissions: 644
+  owner: composer
+  content: |
+    ${indent(4, docker_compose)}
+${additional_files}
+
+runcmd:
+# install docker compose plugin
+- sudo wget https://github.com/docker/compose/releases/download/v2.26.1/docker-compose-linux-x86_64 -O /var/lib/google/docker-compose
+- sudo chmod o+x /var/lib/google/docker-compose
+- mkdir -p /home/composer/.docker/cli-plugins
+- ln -sf /var/lib/google/docker-compose /home/composer/.docker/cli-plugins/docker-compose
+# create internal traefik only network
+- docker network create docker-proxynet --internal
+# create external docker network
+- docker network create traefik-servicenet
+# create acme.json placeholder to persist tls certificate
+- |
+  >>/home/composer/traefik/acme/acme.json && \
+  sudo chown 2000:2000 /home/composer/traefik/acme/acme.json && \
+  sudo chmod 600 /home/composer/traefik/acme/acme.json
+# start application
+- systemctl daemon-reload
+- systemctl start dockerproxy
+- systemctl start traefik
+- systemctl start compose
+# run additional command
+${additional_runcmd}

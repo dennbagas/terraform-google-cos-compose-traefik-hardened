@@ -1,0 +1,12 @@
+{
+  "credHelpers": {
+    "asia.gcr.io": "gcr",
+    "eu.gcr.io": "gcr",
+    "gcr.io": "gcr",
+    "marketplace.gcr.io": "gcr",
+    "northamerica-northeast1-docker.pkg.dev": "gcr",
+    "us-central1-docker.pkg.dev": "gcr",
+    "us-east1-docker.pkg.dev": "gcr",
+    "us.gcr.io": "gcr"
+  }
+}

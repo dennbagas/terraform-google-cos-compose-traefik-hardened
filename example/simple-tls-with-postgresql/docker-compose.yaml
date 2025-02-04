@@ -1,0 +1,30 @@
+services:
+  whoami:
+    image: "traefik/whoami"
+    container_name: "simple-service"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`my-app.com`)" # change with your domain
+      - "traefik.http.routers.whoami.entrypoints=web-secure"
+      - "traefik.http.routers.whoami.tls.certresolver=le"
+    networks:
+      - traefik-servicenet
+
+  postgres:
+    image: bitnami/postgresql:16
+    container_name: "postgres"
+    restart: unless-stopped
+    env_file:
+      - /home/composer/postgres/.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - /home/composer/postgres/init/:/docker-entrypoint-initdb.d/
+      - /home/composer/postgres/data:/bitnami/postgresql
+    networks:
+      - traefik-servicenet
+
+networks:
+  traefik-servicenet:
+    external: true
+    name: traefik-servicenet

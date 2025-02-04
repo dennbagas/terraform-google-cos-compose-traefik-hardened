@@ -1,0 +1,2 @@
+# create directory for postgres data with 740 permission
+- install -d -m 0740 -o 1001 -g 1001 /home/composer/postgres/data

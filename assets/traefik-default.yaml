@@ -1,0 +1,12 @@
+log:
+  level: WARN
+providers:
+  docker:
+    exposedByDefault: false
+    endpoint: 'tcp://dockerproxy:2375'
+    network: traefik-servicenet
+api:
+  insecure: false
+entryPoints:
+  web:
+    address: ':10080' # will be routed to port 80

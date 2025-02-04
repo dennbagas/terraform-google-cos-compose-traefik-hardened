@@ -1,0 +1,12 @@
+credentials.json
+**/.terraform
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/.env
+.vscode
+
+# tf lock file
+.terraform.lock.hcl
+
+secret/*
+test/*
