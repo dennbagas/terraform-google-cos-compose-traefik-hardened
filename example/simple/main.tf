@@ -6,7 +6,7 @@ provider "google" {
 }
 
 module "cos_module" {
-  source = "dennbagas/terraform-google-cos-compose-traefik-hardened"
+  source = "dennbagas/cos-compose-traefik-hardened/google"
 
   machine_name     = "my-server"
   machine_type     = "e2-micro"
